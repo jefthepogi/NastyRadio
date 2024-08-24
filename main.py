@@ -7,6 +7,10 @@ from currentsong import CurrentSong
 def main(page: ft.Page):
   page.window.min_width = 300
   page.window.min_height = 600
+  page.window.width = SCREEN_WIDTH
+  page.window.height = SCREEN_HEIGHT
+  page.update()
+
   page.fonts = {
     "Arial Unicode": "assets/fonts/ARIALUNI.TTF",
     "Ubuntu": "assets/fonts/Ubuntu-B.ttf",
@@ -103,41 +107,15 @@ def main(page: ft.Page):
     """ ---------------------------------------------------------- PLAY SONG -------------------------------------------------------------------------------- """
     if page.route == "/play":
       
-      def tabButton(**kwargs):
+      def tabDesign(**kwargs):
+        value: str = kwargs.get('value')
         title = kwargs.get('title')
         icon = kwargs.get('icon')
-        return ft.TextButton(
-          content=ft.Row(
-            [
-              ft.Text(title, size=8, font_family='Ubuntu'),
-              ft.Icon(name=icon, size=13)
-            ],
-            spacing=4,
-          ),
-          style=ft.ButtonStyle(color=LIGHTCOLOR, bgcolor=DARKCOLOR, shape=ft.RoundedRectangleBorder(radius=15)),
+        return ft.Segment(
+          value=value,
+          label=ft.Text(title, size=12, font_family='Ubuntu'),
+          icon=ft.Icon(name=icon, size=15)
         )
-      
-      myTabs = ft.AppBar(
-        leading_width=40,
-        title_spacing=5,
-        title=ft.Row(
-          [
-            tabButton(title='Queue', icon=ft.icons.QUEUE_MUSIC),
-            tabButton(title='Song', icon=ft.icons.MUSIC_NOTE),     
-          ],
-          spacing=6,
-        ),
-        actions=[
-          ft.Container(
-            ft.IconButton(
-              icon=ft.icons.MORE_VERT,
-              icon_color=LIGHTCOLOR,
-              icon_size=18,
-              # on_click=lambda _: page.open()
-            ),
-          ),
-        ]
-      )
       
       cover_photo = ft.Image(
         src=os.path.normcase("assets/svgs/music.svg"),
@@ -147,29 +125,59 @@ def main(page: ft.Page):
       )
       
       mySong = CurrentSong(data=database.access(database.current_id), page=page, metadata=database.access(database.current_id)["metadata"])
+      mySongContent = ft.Card(
+        content=ft.Container(
+          expand=True,
+          content=ft.Column(
+            controls=[ 
+              cover_photo,
+              mySong.hud,
+            ],
+            expand=True,
+            alignment=ft.CrossAxisAlignment.CENTER,
+          ),
+          padding=20,
+          bgcolor=DARKCOLOR,
+        )
+      )
+
+      def handle_exit(e):
+        mySong.audio.pause()
+        mySong.audio.release()
+        view_pop(e)
+
+      # TODO: Fix nav layout, and audio glitches.
+      songNavbar = ft.AppBar(
+        leading=ft.IconButton(
+          icon=ft.icons.ARROW_BACK_IOS_NEW,
+          icon_color=LIGHTCOLOR,
+          icon_size=15,
+          padding=ft.padding.all(-15),
+          on_click=handle_exit,
+        ),
+        leading_width=30,
+        title=ft.SegmentedButton(
+          allow_empty_selection=False,
+          allow_multiple_selection=False,
+          show_selected_icon=False,
+          selected={"2"},
+          segments=[
+            tabDesign(value="1", icon=ft.icons.QUEUE_MUSIC, title="Queue"),
+            tabDesign(value="2", icon=ft.icons.MUSIC_NOTE, title="Song"),
+          ],
+        ),
+        title_spacing=1,
+      )
         
       page.views.append(
         ft.View(
           route="/play",
           controls=[
-            myTabs,
-            ft.Card(
-              content=ft.Container(
-                expand=True,
-                content=ft.Column(
-                  controls=[ 
-                    cover_photo,
-                    mySong.hud,
-                  ],
-                  expand=True,
-                  alignment=ft.CrossAxisAlignment.CENTER,
-                ),
-                padding=20,
-                bgcolor=DARKCOLOR,
-              )
-            )
+            songNavbar,
+            mySongContent,
           ],
-          horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+          horizontal_alignment=ft.MainAxisAlignment.START,
+          spacing=0
         )
       )
     
@@ -277,8 +285,6 @@ def main(page: ft.Page):
   page.on_route_change = route_change
   page.on_view_pop = view_pop
   page.go(page.route)
-
-
 
 if __name__ == '__main__':
   ft.app(target=main, assets_dir=ROOT_DIR)
